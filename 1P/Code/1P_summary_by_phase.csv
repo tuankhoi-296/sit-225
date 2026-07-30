@@ -1,0 +1,7 @@
+phase,actual,seconds,pir_high_pct,pir_missed_pct
+still: reading,Present,300,1.0,99.0
+moving,Present,180,40.0,60.0
+still: focused,Present,360,22.2,77.8
+away,Absent,180,7.2,
+normal work,Present,360,16.4,83.6
+still: final,Present,456,30.5,69.5
