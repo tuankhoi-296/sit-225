@@ -27,8 +27,12 @@ void setup() {
 void loop() {
   unsigned long now = millis();   //  timestamp in milliseconds since startup
 
+  // --- 1. PIR Sensor Logic: State-Change Detection ---
   // --- PIR: only log on state CHANGE  ---
   int pirState = digitalRead(PIR_PIN);
+
+  // Only log data if the state has CHANGED.
+  // This prevents spamming the serial port with repetitive data.
   if (pirState != lastPirState) {
     Serial.print("PIR,");
     Serial.print(now);
@@ -36,13 +40,14 @@ void loop() {
     Serial.println(pirState == HIGH ? "HIGH" : "LOW");
     lastPirState = pirState;
   }
-
+  // --- 2. DHT22 Sensor Logic: Interval Polling ---
   // --- log every 2 seconds ---
   if (now - lastDhtRead >= DHT_INTERVAL) {
     lastDhtRead = now;
     float h = dht.readHumidity();
     float t = dht.readTemperature();   // Celsius degree
 
+    // Data Quality Check: Verify if the reads failed and return NaN
     Serial.print("DHT,");
     Serial.print(now);
     Serial.print(",");
