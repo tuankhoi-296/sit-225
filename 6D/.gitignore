@@ -1,0 +1,8 @@
+cloud_credentials.py
+test.py
+__pycache__/
+data_discarded_*/
+~$*
+report/
+SIT225_6D_Report.docx
+SIT225_6D_Report.pdf
