@@ -3,6 +3,9 @@ test.py
 __pycache__/
 data_discarded_*/
 ~$*
+video_script.md
+figures/fig_confusion.png
+figures/fig_scatter.png
 report/
-SIT225_6D_Report.docx
-SIT225_6D_Report.pdf
+# SIT225_6D_Report.docx
+# SIT225_6D_Report.pdf
