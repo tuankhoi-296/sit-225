@@ -1,4 +1,4 @@
-# SIT225 6D – Annotating accelerometer data with webcam activity images
+# SIT225 6D : Annotating accelerometer data with webcam activity images
 
 Phone (Arduino IoT Remote) → Arduino IoT Cloud → Python → 10-second windows of accelerometer
 data + a webcam image per window → labels from the images → pattern analysis.
@@ -14,9 +14,6 @@ data + a webcam image per window → labels from the images → pattern analysis
 | `data/session_log.csv` | filename, seq, window start/end, rows, cue                                                                           |
 | `data/raw_session.csv` | every value received: timestamp, axis, value                                                                         |
 | `figures/`             | Figures used in the report                                                                                           |
-
-The report itself (`SIT225_6D_Report.pdf`) and the script that builds it are submitted on OnTrack and
-are not kept in this repository.
 
 ## Setup
 
@@ -49,4 +46,3 @@ activity), `--lead` (preparation countdown), `--out`, `--port`, `--seed`.
 (mean 5.5 per window; 40 windows empty because of gaps in the Arduino Cloud stream), leaving 136
 usable windows. Labels from images agree with the cue schedule 78.7 % of the time. Re-deciding the
 65 uncertain windows from the sensor data raises this to 82.4 % (`data/annotations_final.csv`).
-See the report for the analysis.
