@@ -1,16 +1,8 @@
 """
-annotate.py - label every captured window from its webcam images only.
+annotate.py - label each window from its webcam images only.
 
-Shows the 4-frame strip (data/strips) above the end-of-window image (data/windows).
-The cue schedule is deliberately NOT shown, so labels come from the images alone.
-
-Keys:  0 = no activity   1 = waving   2 = shaking
-       u = mark current window as "uncertain" (then press 0/1/2)
-       b = back one window   q = save and quit (re-run to resume)
-
-Output:
-    data/annotations.csv        filename,label        (the 2-column annotation file)
-    data/annotation_notes.csv   filename,label,uncertain
+Keys: 0 no activity, 1 waving, 2 shaking, u uncertain, b back, q quit.
+Output: data/annotations.csv and data/annotation_notes.csv
 """
 import csv
 import os

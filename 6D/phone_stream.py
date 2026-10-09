@@ -1,12 +1,7 @@
 """
 phone_stream.py - receive the phone's accelerometer x, y, z from Arduino IoT Cloud.
 
-The Python "device" Thing has three cloud variables (python_x, python_y, python_z) that are
-synced with the phone Thing's accelerometer_x/_y/_z. Every time the cloud writes one of
-them, `on_sample(axis, value, t)` is called from a background thread.
-
-Credentials are read from cloud_credentials.py (not committed) or from the environment
-variables ARDUINO_DEVICE_ID / ARDUINO_SECRET_KEY.
+Credentials come from cloud_credentials.py (not committed).
 """
 import csv
 import logging
@@ -35,8 +30,9 @@ def start_phone_stream(on_sample, variables=VARIABLES):
     device_id, secret_key = load_credentials()
 
     def worker():
-        # sync_mode lets us poll the MQTT socket in a tight loop, so every message is handled
-        # as soon as it arrives (async mode only reads one message per second).
+        # sync_mode lets us poll the MQTT socket in a tight loop,
+        # so every message is handled as soon as it arrives.
+        # (async mode only reads one message per second.)
         client = ArduinoCloudClient(device_id=device_id, username=device_id,
                                     password=secret_key, sync_mode=True)
         for axis, var in variables.items():
@@ -48,7 +44,8 @@ def start_phone_stream(on_sample, variables=VARIABLES):
         while True:
             try:
                 client.update()
-            except Exception as e:           # network hiccup: back off, update() reconnects
+            except Exception as e:
+                # Network hiccup: back off for a second, update() reconnects by itself.
                 logging.warning(f"[phone_stream] {e}; retrying")
                 time.sleep(1.0)
 

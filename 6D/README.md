@@ -8,7 +8,7 @@ data + a webcam image per window → labels from the images → pattern analysis
 | `capture_dash.py`      | Capture session: cloud stream + webcam, one CSV/JPG/PNG per 10 s window, live Plotly Dash page with the activity cue |
 | `phone_stream.py`      | Arduino IoT Cloud client for`python_x/y/z` (reused from 5C)                                                        |
 | `annotate.py`          | Label each window from its images only →`data/annotations.csv`                                                    |
-| `analyze.py`           | Features, figures, pair contrasts, decision trees, resolution of uncertain windows                                   |
+| `analyze.py`           | Features, figures, and resolution of uncertain windows with a simple threshold rule                                  |
 | `data/windows/`        | `<seq>_<yyyymmddHHMMss>.csv` (timestamp,x,y,z), `.jpg` (webcam), `.png` (graph)                                |
 | `data/strips/`         | 4 webcam frames per window, side by side (annotation aid)                                                            |
 | `data/session_log.csv` | filename, seq, window start/end, rows, cue                                                                           |
@@ -21,7 +21,7 @@ are not kept in this repository.
 ## Setup
 
 ```
-pip install dash plotly pandas numpy matplotlib scikit-learn opencv-python arduino-iot-cloud python-docx
+pip install dash plotly pandas numpy matplotlib scikit-learn opencv-python arduino-iot-cloud
 ```
 
 Create `cloud_credentials.py` (git-ignored):
@@ -47,5 +47,6 @@ activity), `--lead` (preparation countdown), `--out`, `--port`, `--seed`.
 
 35 minutes, 210 windows, 3 activities in shuffled 30 s blocks. 1156 accelerometer rows arrived
 (mean 5.5 per window; 40 windows empty because of gaps in the Arduino Cloud stream), leaving 136
-usable windows. Labels from images agree with the cue schedule 78.7 % of the time; a decision tree
-on the sensor features reaches 97.8 % against the cue schedule. See the report for the analysis.
+usable windows. Labels from images agree with the cue schedule 78.7 % of the time. Re-deciding the
+65 uncertain windows from the sensor data raises this to 82.4 % (`data/annotations_final.csv`).
+See the report for the analysis.

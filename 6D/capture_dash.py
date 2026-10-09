@@ -1,23 +1,9 @@
 """
-capture_dash.py - SIT225 6D: capture smartphone accelerometer data + webcam activity images.
+capture_dash.py - capture phone accelerometer data and webcam images in 10 s windows.
 
-Phone (Arduino IoT Remote) -> Arduino IoT Cloud -> this script
-    every WINDOW seconds:
-        data/windows/<seq>_<yyyymmddHHMMss>.csv   accelerometer rows (timestamp, x, y, z)
-        data/windows/<seq>_<yyyymmddHHMMss>.jpg   webcam image taken when the window closes
-        data/windows/<seq>_<yyyymmddHHMMss>.png   graph of the window
-        data/strips/<seq>_<yyyymmddHHMMss>.jpg    4 frames spread over the window (annotation aid)
-    -> Plotly Dash page (http://127.0.0.1:8050) shows the latest graph + image,
-       and a cue telling the participant which activity to perform next.
-
-The cue schedule (blocks of BLOCK windows, activity order shuffled every round) keeps the
-three classes balanced. The cue is logged to data/session_log.csv but is NOT used for
-annotation: labels are assigned later from the images only (annotate.py). The cue log is
-used afterwards to measure how reliable image-based annotation was.
-
-Run:
-    python capture_dash.py                   # 35 minute session
-    python capture_dash.py --minutes 2       # short test
+Each window saves a CSV, a webcam JPG and a graph PNG to data/windows/,
+plus a 4-frame strip to data/strips/.
+The Dash page (http://127.0.0.1:8050) shows the latest graph, image and activity cue.
 """
 import argparse
 import base64
@@ -40,11 +26,11 @@ from phone_stream import start_phone_stream
 
 ACTIVITIES = {0: "no activity", 1: "waving", 2: "shaking"}
 CUE_TEXT = {
-    0: "KHONG LAM GI (no activity) - dat dien thoai nam tren ban, bo tay ra",
-    1: "VAY TAY (waving) - cam dien thoai dung dung, vay tay qua lai",
-    2: "LAC (shaking) - cam dien thoai nam ngang, lac nhanh len xuong",
+    0: "NO ACTIVITY - place the phone flat on the desk, hands off",
+    1: "WAVING - hold the phone upright, swing your arm side to side",
+    2: "SHAKING - hold the phone flat, shake it up and down",
 }
-SHORT = {0: "KHONG LAM GI", 1: "VAY TAY", 2: "LAC"}
+SHORT = {0: "NO ACTIVITY", 1: "WAVING", 2: "SHAKING"}
 COLORS = {"x": "#2a78d6", "y": "#e8543a", "z": "#1fa37a"}
 
 
@@ -82,7 +68,7 @@ class Session:
         os.makedirs(self.win_dir, exist_ok=True)
         os.makedirs(self.strip_dir, exist_ok=True)
 
-        # balanced cue schedule: rounds of [0,1,2] in random order, BLOCK windows each
+        # Balanced cue schedule: rounds of [0, 1, 2] in random order, BLOCK windows each.
         rng = random.Random(seed)
         self.schedule = []
         while len(self.schedule) < self.n_windows:
@@ -93,9 +79,16 @@ class Session:
         self.schedule = self.schedule[: self.n_windows]
 
         self.lock = threading.Lock()
-        self.samples = []                 # (t, axis, value) of the current window
-        self.latest = {}                  # axis -> (t, value) for row assembly
-        self.rows = []                    # completed rows of the current window
+
+        # (t, axis, value) of the current window
+        self.samples = []
+
+        # axis -> (t, value), used to assemble one row from the three axes
+        self.latest = {}
+
+        # completed rows of the current window
+        self.rows = []
+
         self.raw = open(os.path.join(out_dir, "raw_session.csv"), "a", newline="")
         self.raw_w = csv.writer(self.raw)
         log_path = os.path.join(out_dir, "session_log.csv")
@@ -108,15 +101,19 @@ class Session:
 
         self.t0 = None
         self.seq = 0
-        self.last = None                  # info about the last saved window for the dashboard
+
+        # info about the last saved window, shown on the dashboard
+        self.last = None
         self.done = False
 
-    # called from the cloud thread for every value
+    # Called from the cloud thread for every value.
     def on_sample(self, axis, value, t):
         with self.lock:
             self.raw_w.writerow([f"{t:.3f}", axis, value])
             self.latest[axis] = (t, float(value))
-            if len(self.latest) == 3:     # all three axes updated -> one row
+
+            # All three axes updated -> one row.
+            if len(self.latest) == 3:
                 t_row = max(v[0] for v in self.latest.values())
                 self.rows.append((t_row, *(self.latest[a][1] for a in ("x", "y", "z"))))
                 self.latest = {}
@@ -125,21 +122,30 @@ class Session:
         return self.schedule[k] if 0 <= k < len(self.schedule) else None
 
     def run(self, camera, lead_s=0.0):
-        self.t0 = time.time() + lead_s          # countdown shown on the dashboard before window 1
+        # Countdown shown on the dashboard before window 1.
+        self.t0 = time.time() + lead_s
         time.sleep(max(0.0, self.t0 - time.time() - 3))
         if lead_s >= 3:
             beep()
         time.sleep(max(0.0, self.t0 - time.time()))
-        with self.lock:                          # drop what arrived during the countdown
+
+        # Drop what arrived during the countdown.
+        with self.lock:
             self.rows, self.latest = [], {}
+
         for k in range(self.n_windows):
             w_start = self.t0 + k * self.window_s
             strip = []
-            for frac in (0.1, 0.35, 0.6, 0.85):                # frames spread over the window
+
+            # Four frames spread over the window.
+            for frac in (0.1, 0.35, 0.6, 0.85):
                 time.sleep(max(0.0, w_start + frac * self.window_s - time.time()))
                 strip.append(camera.snapshot())
+
+                # Warning beep 4 s before the activity changes.
                 if frac == 0.6 and self.cue_at(k + 1) not in (None, self.cue_at(k)):
-                    threading.Thread(target=beep_warn, daemon=True).start()   # 4 s before the change
+                    threading.Thread(target=beep_warn, daemon=True).start()
+
             time.sleep(max(0.0, w_start + self.window_s - time.time()))
             w_end = time.time()
             with self.lock:
@@ -237,28 +243,31 @@ def build_app(session):
         style = {"fontSize": "26px", "fontWeight": "bold", "padding": "12px", "borderRadius": "8px", "color": "white"}
         if session.t0 is None:
             style["background"] = "#333"
-            return "Dang khoi dong ...", style, "", dash.no_update, dash.no_update
+            return "Starting up ...", style, "", dash.no_update, dash.no_update
         now = time.time()
-        if now < session.t0:                      # preparation countdown before window 1
+
+        # Preparation countdown before window 1.
+        if now < session.t0:
             first = session.cue_at(0)
             style["background"] = cue_color[first]
-            return (f"CHUAN BI - bat dau sau {session.t0 - now:.0f}s   |   hoat dong dau tien: {CUE_TEXT[first]}",
-                    style, "Ngoi vao khung hinh, cam dien thoai san sang", dash.no_update, dash.no_update)
+            return (f"GET READY - starting in {session.t0 - now:.0f}s   |   first activity: {CUE_TEXT[first]}",
+                    style, "Sit in frame, hold the phone ready", dash.no_update, dash.no_update)
         k = int((now - session.t0) // session.window_s)
         cue = session.cue_at(k)
         remaining = session.window_s - (now - session.t0) % session.window_s
         nxt = session.cue_at(k + 1)
         style["background"] = cue_color[cue]
         if session.done or cue is None:
-            text = "Xong roi - co the dung script (Ctrl+C)"
+            text = "Done - you can stop the script (Ctrl+C)"
         else:
             text = f"{CUE_TEXT[cue]}   ({remaining:.0f}s)"
             if nxt is not None and nxt != cue:
-                if remaining <= 5:                # highlight the upcoming change in its own colour
+                # Highlight the upcoming change in its own colour.
+                if remaining <= 5:
                     style["background"] = cue_color[nxt]
-                    text = f"DOI SAU {remaining:.0f}s  ->  {CUE_TEXT[nxt]}"
+                    text = f"CHANGE IN {remaining:.0f}s  ->  {CUE_TEXT[nxt]}"
                 else:
-                    text += f"   ->   sap toi: {SHORT[nxt]}"
+                    text += f"   ->   next: {SHORT[nxt]}"
         elapsed = min(now - session.t0, session.n_windows * session.window_s)
         status = (f"window {min(k + 1, session.n_windows)}/{session.n_windows} | elapsed {elapsed / 60:.1f} min | "
                   f"rows in current window: {len(session.rows)}")
